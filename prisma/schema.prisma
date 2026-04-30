@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cartItems             CartItem[]
+  orders                Order[]
+  addresses             Address[]
+  accessibilitySettings AccessibilitySettings?
+
+  @@index([email])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model Category {
+  id       Int       @id @default(autoincrement())
+  name     String    @unique
+  icon     String
+  products Product[]
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  categoryId    Int
+  name          String
+  description   String   @db.Text
+  price         Decimal  @db.Decimal(10, 2)
+  originalPrice Decimal? @db.Decimal(10, 2)
+  stock         Int      @default(0)
+  imageUrl      String?
+  imageAlt      String?
+  rating        Decimal? @db.Decimal(2, 1)
+  ratingCount   Int?
+  badge         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category   Category    @relation(fields: [categoryId], references: [id])
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@index([name])
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  productId Int
+  quantity  Int      @default(1)
+  addedAt   DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  status    OrderStatus @default(PENDING)
+  subtotal  Decimal     @db.Decimal(10, 2)
+  shipping  Decimal     @db.Decimal(10, 2)
+  total     Decimal     @db.Decimal(10, 2)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+  @@index([status])
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  SHIPPED
+  DELIVERED
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+}
+
+model Address {
+  id        Int     @id @default(autoincrement())
+  userId    Int
+  label     String
+  street    String
+  city      String
+  state     String  @db.Char(2)
+  zipCode   String
+  isDefault Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AccessibilitySettings {
+  userId       Int     @id
+  fontScale    Decimal @default(1.0) @db.Decimal(2, 1)
+  highContrast Boolean @default(false)
+  largeButtons Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
